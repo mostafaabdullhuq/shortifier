@@ -5,7 +5,26 @@
 {% endblock %}
 
 {% block body %}
-    <div class="container">
-
+    <div class="container home-container">
+        <div class="image-container mb-5">
+            <img src="static/shorten-url.svg" alt="shorten-url">
+        </div>
+        <form class="shorten-url" method="post" action="/create">
+            <div class="mb-3 row">
+            <input type="text" class="form-control form-control-lg url" name="url" placeholder="https://example.com" required>
+            </div>
+            <div class="row">
+                <div class="col-8 select-container">
+                    <select class="form-select form-select-lg" name="option" required>
+                        <option selected disabled>Choose Option</option>
+                        <option value="1">URL Shortner</option>
+                        <option value="2">QR Code Generator</option>
+                    </select>
+                </div>
+                <div class="col-4 submit-container">
+                    <input type="submit" class="btn btn-primary btn-lg " value="Create" />
+                </div>
+            </div>
+        </form>
     </div>
 {% endblock %}
