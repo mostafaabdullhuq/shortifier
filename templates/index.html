@@ -6,25 +6,39 @@
 
 {% block body %}
     <div class="container home-container">
-        <div class="image-container mb-5">
-            <img src="static/shorten-url.svg" alt="shorten-url">
-        </div>
-        <form class="shorten-url" method="post" action="/create">
-            <div class="mb-3 row">
-            <input type="text" class="form-control form-control-lg url" name="url" placeholder="https://example.com" required>
-            </div>
-            <div class="row">
-                <div class="col-8 select-container">
-                    <select class="form-select form-select-lg" name="option" required>
-                        <option selected disabled>Choose Option</option>
-                        <option value="1">URL Shortner</option>
-                        <option value="2">QR Code Generator</option>
-                    </select>
-                </div>
-                <div class="col-4 submit-container">
-                    <input type="submit" class="btn btn-primary btn-lg " value="Create" />
+        <section class="intro-container row mb-5">
+            <div class="text-container col">
+                <div class="container-col">
+                    <h1>Short links, Save time.</h1>
+                    <ul>
+                        <li><span style="font-weight: bold">Short</span>ifier is a free tool to shorten a URL or convert URL to QR Code.</li>
+                        <li>Easily customize shortened URLs for easy remembering.</li>
+                        <li>Check the amount of clicks that your shortened url received</li>
+                    </ul>
                 </div>
             </div>
-        </form>
+            <div class="image-container col">
+                <img src="static/img/shorten-url.svg" alt="shorten-url">
+            </div>
+        </section>
+        <section class="create-form-container row">
+            <form class="shorten-url" method="post" action="/create">
+                <div class="mb-3 row">
+                <input type="text" class="form-control form-control-lg url" name="url" placeholder="https://example.com" required>
+                </div>
+                <div class="row">
+                    <div class="col-8 select-container">
+                        <select class="form-select form-select-lg" name="option" required>
+                            <option selected disabled>Choose Option</option>
+                            <option value="1">URL Shortner</option>
+                            <option value="2">QR Code Generator</option>
+                        </select>
+                    </div>
+                    <div class="col-4 submit-container">
+                        <input type="submit" class="btn btn-primary btn-lg " value="Create" />
+                    </div>
+                </div>
+            </form>
+        </section>
     </div>
 {% endblock %}

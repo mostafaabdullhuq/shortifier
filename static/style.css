@@ -7,6 +7,25 @@
 
 }
 
+@media (min-width: 1900px ) {
+
+    section.intro-container div.text-container .container-col {
+        position: relative;
+        left: 20%;
+
+    }
+    section.intro-container div.text-container .container-col h1{
+        font-size: 40px
+    }
+
+    section.intro-container div.text-container .container-col ul {
+        font-size: 20px;
+    }
+
+
+}
+
+
 div.user-controls button a {
     text-decoration: none;
     padding: 5px 10px;
@@ -19,23 +38,36 @@ div.user-controls button:last-of-type {
 
 div.home-container {
     position: absolute;
-    max-width: 80%;
+    max-width: 70%;
     top:50%;
     left:50%;
-    /*bottom:50%;
-    */transform: translate(-50%, -50%);
-
+    transform: translate(-50%, -50%);
+    font-family: 'Ubuntu', sans-serif;
 }
 
+section.intro-container div.text-container .container-col{
+    position: relative;
+    top:50%;
+    transform: translate(0%,-50%);
+    -webkit-transform: translate(0%,-50%);
+    -moz-transform: translate(0%,-50%);
+    -ms-transform: translate(0%,-50%);
+    -o-transform: translate(0%,-50%);
+}
+
+section.create-form-container {
+    padding: 100px 0;
+}
 div.image-container img {
     width: 100%;
     display: block;
     margin: 0px auto;
-    max-width: 500px;
+    /* max-width: 500px; */
     max-height: 500px;
 }
+
 div.home-container form {
-    max-width: 700px;
+    max-width: 1000px;
     margin: 0px auto;
 }
 
