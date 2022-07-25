@@ -6,3 +6,16 @@ div.user-controls button a {
 div.user-controls button:last-of-type {
     margin-right:20px;
 }
+nav {
+    height: 5vh
+}
+
+footer {
+    color: #fff;
+    position: absolute;
+    bottom: 0%;
+    width: 100%;
+}
+footer span {
+    font-weight: bold;
+}
