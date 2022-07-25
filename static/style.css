@@ -1,0 +1,8 @@
+div.user-controls button a {
+    text-decoration: none;
+    padding: 5px 10px;
+    color: #fff;
+}
+div.user-controls button:last-of-type {
+    margin-right:20px;
+}
