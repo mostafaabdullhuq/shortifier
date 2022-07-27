@@ -5,22 +5,28 @@
 {% endblock %}
 
 {% block body %}
-    <div class="container pt-5">
+    <div class="container">
         <section class="shorten-urls-container pb-5">
-            {% for eachURL in userURLS %}
-                <div class="card border-primary shorten-item mb-3">
-                    <div class="card-body text-primary">
-                        <h5 class="card-title">{{eachURL['full_url']}}</h5>
-                        <p class="card-text dashboard-result-url-text"><a href="/{{eachURL['short_id']}}">https://{{request.host}}/{{eachURL['short_id']}}</a></p>
-                        <div class="controls-container">
-                            <button class="btn btn-outline-secondary me-2">{{eachURL['visits']}} Visits</button>
-                            <button class="btn btn-outline-primary edit-url-submit me-2">Edit URL</button>
-                            <button class="btn btn-outline-danger delete-url-submit">Delete URL</button>
-                            <input type="hidden" class="shorten_url_id" name="shorten_url_id" value="{{eachURL['id']}}">
+            {% if userURLS %}
+                {% for eachURL in userURLS %}
+                    <div class="card border-primary shorten-item mb-3">
+                        <div class="card-body text-primary">
+                            <h5 class="card-title">{{eachURL['full_url']}}</h5>
+                            <p class="card-text dashboard-result-url-text"><a href="/{{eachURL['short_id']}}">https://{{request.host}}/{{eachURL['short_id']}}</a></p>
+                            <div class="controls-container">
+                                <button class="btn btn-outline-secondary me-2">{{eachURL['visits']}} Visits</button>
+                                <button class="btn btn-outline-primary edit-url-submit me-2">Edit URL</button>
+                                <button class="btn btn-outline-danger delete-url-submit">Delete URL</button>
+                                <input type="hidden" class="shorten_url_id" name="shorten_url_id" value="{{eachURL['id']}}">
+                            </div>
                         </div>
                     </div>
+                {% endfor %}
+                {% else %}
+                <div class="no-result-container row text-center pt-5">
+                    <h5>No URLs to show.</h5>
                 </div>
-            {% endfor %}
+            {% endif %}
         </section>
     </div>
 {% endblock %}

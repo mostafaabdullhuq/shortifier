@@ -596,3 +596,41 @@ def url_redirect(shortened_url):
         visitNumber = int(urlExist[0]['visits'])
         db.execute("UPDATE urls SET visits = ? WHERE id = ?", visitNumber + 1 , urlID)
         return redirect(fullURL)
+
+
+
+@login_required
+@app.route("/api/delete_url", methods=["POST"])
+def delete_url():
+    response = {"status":"", "code": 0, "message": "", "data": {}}
+
+    userID = session["user_id"]
+    urlID = request.form.get("url_id")
+
+    if not userID:
+        response["status"] = "failed"
+        response["code"] = 401
+        response["message"] = "You must be logged in to delete this url."
+    
+    if not urlID:
+        response["status"] = "failed"
+        response["code"] = 400
+        response["message"] = "Invalid url ID."
+
+
+    isURLFound  = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+
+    if len(isURLFound) > 0:
+        deleteURL = db.execute("DELETE FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+        response["status"] = "success"
+        response["code"] = 200
+        response["message"] = "URL has been deleted successfully."
+
+
+    else:
+        response["status"] = "failed"
+        response["code"] = 400
+        response["message"] = "URL not found."
+
+
+    return jsonify(response)

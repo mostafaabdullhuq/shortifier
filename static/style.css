@@ -5,6 +5,16 @@
 }
 
 
+/* layout.html */
+
+nav.navbar
+{
+    position: fixed !important;
+    top:0%;
+    width: 100%;
+    z-index: 1;
+}
+
 /* index.html */
 
 @media (max-height: 621px ) {
@@ -71,6 +81,11 @@ div.image-container img {
     /* max-width: 500px; */
     max-height: 500px;
 }
+
+.container {
+    padding: 100px 0;
+}
+
 
 div.home-container form {
     max-width: 1000px;
@@ -194,3 +209,4 @@ h5.result-url-text {
     max-width: 70%;
 }
 }
+

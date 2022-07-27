@@ -421,5 +421,34 @@ $(document).ready(function () {
     });
 
 
+
+
+    $("button.delete-url-submit").click(function () {
+
+        let urlID = $(this).siblings("input.shorten_url_id").val(),
+            urlContainer = $(this).parent("div.controls-container").parent("div.card-body").parent("div.shorten-item"),
+            deletePostData = {
+                url_id: urlID
+            };
+        $.ajax({
+            type: "POST",
+            url: "/api/delete_url",
+            data: deletePostData,
+            success: function (response) {
+                if (response.code === 200) {
+                    urlContainer.fadeOut();
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Oops...",
+                        text: response.message,
+                    });
+                }
+            },
+        });
+
+
+    });
+
 // end document ready
 });
