@@ -16,22 +16,6 @@
 
 }
 
-@media (min-width: 1900px ) {
-
-    section.intro-container div.text-container .container-col {
-        position: relative;
-        left: 20%;
-
-    }
-    section.intro-container div.text-container .container-col h1{
-        font-size: 40px
-    }
-
-    section.intro-container div.text-container .container-col ul {
-        font-size: 20px;
-    }
-}
-
 
 div.user-controls button a {
     text-decoration: none;
@@ -52,6 +36,12 @@ div.home-container {
     font-family: 'Ubuntu', sans-serif;
 }
 
+section.intro-container {
+    max-width: 1200px;
+    margin: 0px auto;
+}
+
+
 section.intro-container div.text-container .container-col{
     position: relative;
     top:50%;
@@ -62,9 +52,18 @@ section.intro-container div.text-container .container-col{
     -o-transform: translate(0%,-50%);
 }
 
-section.create-form-container {
-    padding: 100px 0;
+section.shorten-form-container, section.shorten-result-container {
+    max-width: 1200px;
+    margin: 0px auto;
 }
+section.shorten-form-container input , section.shorten-form-container button {
+    padding: 15px;
+}
+
+section.shorten-result-container {
+    display: none;
+}
+
 div.image-container img {
     width: 100%;
     display: block;
@@ -96,14 +95,9 @@ div.home-container div.submit-container input {
 
 footer {
     color: #fff;
-    position: absolute;
-    top:100%;
-    transform: translate(0%,-100%);
+    position: fixed;
+    bottom:0px;
     width: 100%;
-    -webkit-transform: translate(0%,-100%);
-    -moz-transform: translate(0%,-100%);
-    -ms-transform: translate(0%,-100%);
-    -o-transform: translate(0%,-100%);
 }
 
 footer span {
@@ -148,11 +142,55 @@ div.register-image-container img,  div.login-image-container img{
 
 /* login.html */
 
-div.login-image-container img {
+div.login-image-container img, .settings-image-container img {
     max-width: 600px;
 }
 
 .login-form, .settings-form {
     max-width: 800px;
     margin: 0px auto;
+}
+
+/* settings.html */
+
+
+.settings-image-container img {
+    margin: 0px auto 30px auto;
+}
+
+
+.shorten-result-container button.edit-url-submit {
+    padding: 15px 0;
+}
+
+
+/* @media (min-width:768px) {
+
+h5.result-url-text {
+    position: absolute;
+    top:50%;
+    transform: translate(0%, -50%);
+    -webkit-transform: translate(0%, -50%);
+    -moz-transform: translate(0%, -50%);
+    -ms-transform: translate(0%, -50%);
+    -o-transform: translate(0%, -50%);
+}
+
+}
+ */
+
+.shorten-urls-container {
+    margin-bottom: 40px;
+}
+
+.shorten-item {
+    margin: 0px auto;
+    text-align: center;
+    overflow: hidden;
+}
+
+@media (min-width: 1200px) {
+.shorten-item {
+    max-width: 70%;
+}
 }

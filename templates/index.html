@@ -7,12 +7,12 @@
 {% block body %}
     <div class="container home-container">
         <section class="intro-container row mb-5">
-            <div class="text-container col">
+            <div class="text-container col d-none d-lg-block">
                 <div class="container-col">
                     <h1>Short links, Save time.</h1>
                     <ul>
-                        <li><span style="font-weight: bold">Short</span>ifier is a free tool to shorten a URL or convert URL to QR Code.</li>
-                        <li>Easily customize shortened URLs for easy remembering.</li>
+                        <li><span style="font-weight: bold">Short</span>ifier is a free tool to convert long complex URLs to small rememberable ones.</li>
+                        <li>Easily customize shortened URLs for ease of use.</li>
                         <li>Check the amount of clicks that your shortened url received</li>
                     </ul>
                 </div>
@@ -21,24 +21,28 @@
                 <img src="static/img/shorten-url.svg" alt="shorten-url">
             </div>
         </section>
-        <section class="create-form-container row">
-            <form class="shorten-url" method="post" action="/create">
-                <div class="mb-3 row">
-                <input type="text" class="form-control form-control-lg url" name="url" placeholder="https://example.com" required>
+        <section class="shorten-form-container row ">
+                <div class="col-12 col-md-9 pe-0 ps-0 pe-md-3 mb-3">
+                    <input type="text" class="form-control form-control-lg full-url" name="url" placeholder="https://www.example.com" required>
                 </div>
-                <div class="row">
-                    <div class="col-8 select-container">
-                        <select class="form-select form-select-lg" name="option" required>
-                            <option selected disabled>Choose Option</option>
-                            <option value="1">URL Shortner</option>
-                            <option value="2">QR Code Generator</option>
-                        </select>
-                    </div>
-                    <div class="col-4 submit-container">
-                        <input type="submit" class="btn btn-primary btn-lg " value="Create" />
+                <div class="col-12 col-md-3 mb-3">
+                    <div class="row">
+                        <button class="btn btn-primary btn-lg shorten-submit col">Shorten</button>
                     </div>
                 </div>
-            </form>
+        </section>
+        <section class="shorten-result-container row">
+                <div class="card border-primary mb-3 col">
+                    <div class="card-body text-primary">
+                        <div class="row mb-2 mt-2">
+                            <div class="col-md-9 col-12 mb-4 mb-md-0 result-url-container">
+                                <h5 class="card-text  result-url-text">https://domain.com/jR9DSs03301</h5>
+                            </div>
+                            <button class="card-text col-md-3 col-12 btn btn-lg btn-outline-primary edit-url-submit">Edit URL</button>
+                            <input type="hidden" class="shorten_url_id" name="shorten_url_id" value="">
+                        </div>
+                    </div>
+                </div>
         </section>
     </div>
 {% endblock %}

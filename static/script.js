@@ -1,7 +1,7 @@
 
 let SPECIAL_CHARS = "/[!@#$%^&*()_+-=[]{};:\\|,.<>/?]+/",
-    EMAILREGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-
+    EMAILREGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+    URLREGEX = /[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/;
 // function to validate password requirements
 function passWordValidation(passWord, passWordConfirmation) {
     // if password is not the same as password confirmation
@@ -229,12 +229,16 @@ $(document).ready(function () {
     // when update profile button is clicked
     $("button.update-profile-submit").click(function () 
     {
-        // get inputs values
-        let updatePostData = {
-            first_name: $("input.settings-first-name").val(),
-            last_name: $("input.settings-last-name").val(),
-            username: $("input.settings-username").val(),
-            email_address: $("input.settings-email-address").val(),
+
+        let firstName = $("input.settings-first-name").val(),
+            lastName = $("input.settings-last-name").val(),
+            userName = $("input.settings-username").val(),
+            emailAddress = $("input.settings-email-address").val(),
+            updatePostData = {
+            first_name: firstName,
+            last_name: lastName,
+            username: userName,
+            email_address: emailAddress,
         };
 
         // if user email input matches the email regex
@@ -244,8 +248,7 @@ $(document).ready(function () {
                 title: "Oops...",
                 text: "Invalid email address!",
             });
-        }
-        else {
+        } else {
             $.ajax({
                 type: "POST",
                 url: "/api/update_profile",
@@ -304,5 +307,119 @@ $(document).ready(function () {
         }
 
     });
+
+
+
+    $("button.shorten-submit").click(function() {
+
+        let url = $("input.full-url").val(),
+            resultContainer = $("section.shorten-result-container"),
+            shortenPostData = {
+                url: url,
+            };
+
+        if (!url || url === "" || !url.match(URLREGEX)) {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "Please enter valid URL.",
+            });
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "/api/shorten",
+                data: shortenPostData,
+                success: function (response) {
+                    if (response.code === 200) {
+                        let shortenURL = window.location.host + "/" + response.data.shortened_url_id;
+                        console.log(shortenURL)
+                        $("h5.result-url-text").text(shortenURL);
+                        $("input.shorten_url_id").val(response.data.url_id);
+                        resultContainer.fadeIn();
+                    } else {
+                        resultContainer.fadeOut();
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
+                    }
+                    console.log(response);
+                },
+            });
+        }
+
+    });
+
+
+    $("button.edit-url-submit").click(function() {
+
+        let clickedButton = $(this).siblings("input.shorten_url_id"),
+            indexResultContainer = $(clickedButton).siblings("div.result-url-container").children("h5.result-url-text"),
+            dashboardResultContainer = $(clickedButton).parent("div.controls-container").siblings("p.dashboard-result-url-text");
+            urlID = clickedButton.val(),
+            checkURLPostData = {
+                url_id: urlID,
+            };
+            $.ajax({
+                type: "POST",
+                url: "/api/check_edit_url",
+                data: checkURLPostData,
+                success: function (response) {
+                    if (response.code === 200) {
+                        Swal.fire({
+                            title: "Enter New URL",
+                            input: "text",
+                            inputAttributes: {
+                                autocapitalize: "off",
+                            },
+                            showCancelButton: true,
+                            confirmButtonText: "Change",
+                        }).then((userResponse) => {
+                            let newURL = userResponse.value,
+                                editURLPostData = {
+                                    new_url: newURL,
+                                    url_id: urlID,
+                                };
+                            $.ajax({
+                                type: "POST",
+                                url: "/api/edit_url",
+                                data: editURLPostData,
+                                success: function (response) {
+                                    if (response.code === 200) {
+                                        console.log(indexResultContainer);
+                                        console.log(dashboardResultContainer);
+                                        if (indexResultContainer.length > 0) {
+                                            indexResultContainer.text('https://'+window.location.host + "/" + newURL);
+                                            Swal.fire("", `URL has been updated successfully.`, "success");
+                                        }
+                                        else {
+                                            dashboardResultContainer.text('https://' + window.location.host + "/" + newURL);
+                                            Swal.fire("", `URL has been updated successfully.`, "success");
+                                        }
+                                    } 
+                                    else {
+                                        Swal.fire({
+                                            icon: "error",
+                                            title: "Oops...",
+                                            text: response.message,
+                                        });
+                                    }
+                                },
+                            });
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
+                    }
+                },
+            });
+    });
+
+
 // end document ready
 });

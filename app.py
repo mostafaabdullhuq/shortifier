@@ -3,8 +3,9 @@ import os
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session, jsonify
 from flask_session import Session
+from sqlalchemy import INTEGER
 from werkzeug.security import check_password_hash, generate_password_hash
-from helpers import generateApikey, login_required
+from helpers import generateApikey, login_required, shorten_url
 
 
 
@@ -36,6 +37,7 @@ def after_request(response):
     return response
 
 
+# after each request check if user is logged in
 @app.context_processor
 def get_user_details():
     if session["user_id"] and session["api_key"]:
@@ -52,12 +54,15 @@ def get_user_details():
 # index page ( home page)
 @app.route("/")
 def index():
+
+    # render the home page
     return render_template('index.html')
 
 
 # registeration page
 @app.route("/register", methods=["GET","POST"])
 def register():
+
     response = {"status":"", "code": 0, "message": "", "data": {}}
 
     """ if user used GET method """
@@ -190,20 +195,52 @@ def login():
 
 @app.route("/api/shorten", methods=["POST"])
 def shorten():
-    apiKey = request.form.get("api_key")
+
+    response = {"status":"", "code": 0, "message": "", "data": {}}
+
+    print(request.form)
+
+    # get url that will be shortened
     url = request.form.get("url")
-    if not apiKey or not url:
-        return redirect("/")
 
-    # check if api key exists in the database
-
-    apiFound = db.execute("SELECT * FROM api WHERE api_key = ?", apiKey)
-    if len(apiFound) > 0:
-        shortenedURL = ""
-        return jsonify({"status": "success", "code": 200, "data": {"message": "URL shortened successfully.", "url": shortenedURL}})
+    # if no url provided
+    if not url:
+        response["status"] = "failed"
+        response["code"] = 400
+        response["message"] = "Please fill the URL field."
     else:
-        return jsonify({"status": "failed", "code": 401, "data": {"message": "Api Key not found."}})
-    
+
+        # shorten the url
+        while True:
+            shortenURL = shorten_url()
+            
+            # check if shorten url already exists
+            isExist = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", shortenURL)
+            if len(isExist) == 0:
+                break
+
+        # update the response
+        response["status"] = "success"
+        response["code"] = 200
+        response["message"] = "URL shortened successfully."
+        response["data"]["full_url"] = url
+        response["data"]["shortened_url_id"] = shortenURL
+        
+        # if user is logged in
+        if session["api_key"] and session["user_id"]:
+            apiKey = session["api_key"]
+            userID = session["user_id"]
+
+            # ensure that id and api key are correct
+            apiFound = db.execute("SELECT * FROM users WHERE api_key = ? AND id = ?", apiKey, userID)
+            if len(apiFound) > 0:
+
+                # add url to user dashboard
+                addURL = db.execute("INSERT INTO urls (full_url, short_id, user_id) VALUES (?,?,?)", url, shortenURL, userID)
+                response["data"]["url_id"] = addURL
+
+    return jsonify(response)
+
 
 @login_required
 @app.route("/logout")
@@ -221,7 +258,23 @@ def settings():
 
     if request.method == "GET":
         return render_template("settings.html")
-    
+
+
+@login_required
+@app.route("/dashboard")
+def dashboard():
+
+    userID = session["user_id"]
+    apiKey = session["api_key"]
+
+    if not userID or not apiKey:
+        return redirect("/login")
+    else:
+    # get user urls 
+        userURLS = db.execute("SELECT * FROM urls WHERE user_id = ?", userID)
+        print(userURLS)
+        return render_template("dashboard.html", userURLS=userURLS)
+
 
 
 @login_required
@@ -235,19 +288,28 @@ def change_key():
         response["code"] = 401
         response["message"] = "You are not logged in, please login and try again."
     else:
+
+        # check if user session details is correct
         isInfoValid = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", session["user_id"], session["api_key"])
         if len(isInfoValid) == 0:
             response["status"] = "failed"
             response["code"] = 401
             response["message"] = "You are not logged in, please login and try again."
         else:
+
+            # if user is logged in generate a new api key
             newApiKey = generateApikey()
+
+            # update the api key value in database
             addApi = db.execute("UPDATE users SET api_key = ? WHERE id = ? AND api_key = ?", newApiKey, session["user_id"], session["api_key"])
             response["status"] = "success"
             response["code"] = 200
             response["message"] = "Api Key Changed Successfully."
             response["data"]["api_key"] = newApiKey
+
+            # change session api key
             session["api_key"] = newApiKey
+
     return jsonify(response)
 
 
@@ -257,6 +319,7 @@ def change_key():
 def update_profile():
     response = {"status":"", "code": 0, "message": "", "data": {}}
 
+    # get user id from session
     userID = session["user_id"]
 
 
@@ -278,7 +341,6 @@ def update_profile():
         
         else:
             firstNameChanged = lastNameChanged = userNameChanged = emailChanged = False
-            print(request.form)
             # extract user inputs
             newFirstName = request.form.get("first_name")
             newLastName = request.form.get("last_name")
@@ -339,18 +401,23 @@ def update_profile():
                             emailChanged = False
                         
 
-                    
+                    # if user changed any profile detail
                     if userNameChanged or emailChanged or firstNameChanged or lastNameChanged:
+                        
+                        # update the user details in database
                         changeDetails    = db.execute("UPDATE users SET first_name = ? , last_name = ?, email = ?, username = ? WHERE id = ?", newFirstName, newLastName, newEmail, newUserName, userID)
+
+                        # get new user details from database
+                        userDetails = db.execute("SELECT * FROM users WHERE id = ?", userID)[0]
                         response["status"] = "success"
                         response["code"] = 200
                         response["message"] = "Your Details Changed Successfully."
-
+                        for eachKey in userDetails:
+                            response["data"][eachKey] = userDetails[eachKey]
                 else:
                     response["status"] = "failed"
                     response["code"] = 400
                     response["message"] = "No edits to change."
-
 
     return jsonify(response)
 
@@ -361,32 +428,171 @@ def update_profile():
 def change_password():
     response = {"status":"", "code": 0, "message": "", "data": {}}
 
+    # get user id from the session
     userID = session["user_id"]
 
+    # check if user is correct
+    userExist = db.execute("SELECT * FROM users WHERE id = ?", userID)
 
-    currentPassword = request.form.get("current_password")
-    newPassword = request.form.get("new_password")
-    newPasswordConfirmation = request.form.get("new_password_confirmation")
+    # if id is correct and user is logged in
+    if len(userExist) > 1:
 
-    if not currentPassword or not newPassword or not newPasswordConfirmation:
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "Please fill all fields."
-    else:
-        checkPassword = db.execute("SELECT * FROM users WHERE password = ? AND id = ?", currentPassword, userID)
-        if len(checkPassword) > 0:
-            if newPassword == newPasswordConfirmation:
-                changePassword = db.execute("UPDATE users SET password = ? WHERE id = ?", newPassword, userID)
-                response["status"] = "success"
-                response["code"] = 200
-                response["message"] = "Your password has been updated successfully."
+        # get user inputs
+        currentPassword = request.form.get("current_password")
+        newPassword = request.form.get("new_password")
+        newPasswordConfirmation = request.form.get("new_password_confirmation")
+
+        # if any input is empty
+        if not currentPassword or not newPassword or not newPasswordConfirmation:
+            response["status"] = "failed"
+            response["code"] = 400
+            response["message"] = "Please fill all fields."
+        else:
+
+            # check if current password is correct
+            checkPassword = db.execute("SELECT * FROM users WHERE password = ? AND id = ?", currentPassword, userID)
+            if len(checkPassword) > 0:
+                
+                # check if password confirmation is the same as new password
+                if newPassword == newPasswordConfirmation:
+
+                    # update password in database
+                    changePassword = db.execute("UPDATE users SET password = ? WHERE id = ?", newPassword, userID)
+                    response["status"] = "success"
+                    response["code"] = 200
+                    response["message"] = "Your password has been updated successfully."
+                else:
+                    response["status"] = "failed"
+                    response["code"] = 400
+                    response["message"] = "Password doesn't meet the requirements."
             else:
                 response["status"] = "failed"
+                response["code"] = 401
+                response["message"] = "Invalid current password."
+    else:
+        response["status"] = "failed"
+        response["code"] = 401
+        response["message"] = "You are not logged in, please login and try again."
+
+    return jsonify(response)
+
+
+
+
+
+
+@app.route("/api/check_edit_url", methods=["POST"])
+def check_edit_url():
+
+    response = {"status":"", "code": 0, "message": "", "data": {}}
+
+    userID = session["user_id"]
+    apiKey = session["api_key"]
+    print(userID, apiKey)
+    if not userID or not apiKey:
+        response["status"] = "failed"
+        response["code"] = 401
+        response["message"] = "You must be logged in to edit URL."
+    else:
+
+        # validate user id and api key
+        userExist = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", userID, apiKey)
+        if len(userExist) > 0:
+            urlID = request.form.get("url_id")
+            if not urlID:
+                response["status"] = "failed"
                 response["code"] = 400
-                response["message"] = "Password doesn't meet the requirements."
+                response["message"] = "Please provide URL ID to edit."
+            else:
+
+                # check if url id is valid
+                checkURL = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+                if len(checkURL) > 0:
+                    response["status"] = "success"
+                    response["code"] = 200
+                    response["message"] = "You are allowed to edit this URL."
+                else:
+                    response["status"] = "failed"
+                    response["code"] = 401
+                    response["message"] = "You are not allowed to edit this URL."
+
         else:
             response["status"] = "failed"
             response["code"] = 401
-            response["message"] = "Invalid current password."
+            response["message"] = "You must be logged in to edit URL."
+
 
     return jsonify(response)
+    
+
+
+@login_required
+@app.route("/api/edit_url", methods=["POST"])
+def edit_url():
+    response = {"status":"", "code": 0, "message": "", "data": {}}
+
+    userID = session["user_id"]
+    apiKey = session["api_key"]
+
+    
+    if not userID or not apiKey:
+        response["status"] = "failed"
+        response["code"] = 401
+        response["message"] = "You must be logged in to edit this URL."
+
+    else:
+
+        userExist = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", userID, apiKey)
+
+        if len(userExist) > 0 :
+            urlID = request.form.get("url_id")
+            newURL = request.form.get("new_url")
+
+            if not urlID or not newURL:
+                response["status"] = "failed"
+                response["code"] = 400
+                response["message"] = "Please provide valid URL and URL ID."
+            else:
+
+                urlIDExist = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+                if len(urlIDExist) > 0:
+                    checkNewURL = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", newURL)
+                    if len(checkNewURL)  ==  0:
+                        changeURL = db.execute("UPDATE urls SET short_id = ? WHERE id = ?", newURL, urlID)
+                        response["status"] = "success"
+                        response["code"] = 200
+                        response["message"] = "URL has been updated successfully."
+                        response["data"]["url_id"] = urlID 
+                        response["data"]["new_url"] = newURL 
+                    else:
+                        response["status"] = "failed"
+                        response["code"] = 400
+                        response["message"] = "URL already exists."
+                else:
+                    response["status"] = "failed"
+                    response["code"] = 400
+                    response["message"] = "Either you entered wrong URL ID or you don't have permissions to edit this URL."
+
+
+        else:
+            response["status"] = "failed"
+            response["code"] = 401
+            response["message"] = "You must be logged in to edit this URL."
+
+    return jsonify(response)
+
+
+@app.route('/<shortened_url>')
+def url_redirect(shortened_url):
+
+    urlExist = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", shortened_url)
+    if len(urlExist) == 0:
+        return redirect("/")
+    else:
+        urlID = urlExist[0]['id']
+        fullURL = urlExist[0]['full_url']
+        if not (fullURL.startswith('http://') or fullURL.startswith('https://')):
+            fullURL = 'https://' + fullURL
+        visitNumber = int(urlExist[0]['visits'])
+        db.execute("UPDATE urls SET visits = ? WHERE id = ?", visitNumber + 1 , urlID)
+        return redirect(fullURL)
