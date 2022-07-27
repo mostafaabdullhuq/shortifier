@@ -1,0 +1,85 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Login
+{% endblock %}
+
+{% block body %}
+    <div class="container home-container">
+        <div class="settings-form">
+            <!-- update profile section -->
+
+            <!-- first row -->
+            <div class="mb-3 row">
+                <div class="col-md-6">
+                    <label for="settings-first-name" class="form-label">First Name</label>
+                    <input type="text" class="form-control form-control-lg col me-3 settings-first-name" id="settings-first-name"  name="first_name" value="{{userDetails['first_name']}}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="settings-last-name" class="form-label">Last Name</label>
+                    <input type="text" class="form-control form-control-lg col me-3 settings-last-name" id="settings-last-name"  name="last_name" value="{{userDetails['last_name']}}" required>
+                </div>
+            </div>
+
+            <!-- second row -->
+            <div class="mb-3 row">
+                <div class="col-md-6">
+                    <label for="settings-email-address" class="form-label">Email</label>
+                    <input type="email" class="form-control form-control-lg col me-3 settings-email-address" id="settings-email-address"  name="email_address" value="{{userDetails['email']}}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="settings-username" class="form-label">Username</label>
+                    <input type="text" class="form-control form-control-lg col me-3 settings-username" id="settings-username"  name="username" value="{{userDetails['username']}}" required>
+                </div>
+            </div>
+
+            <!-- third row -->
+            <div class="submit-container mb-3 mt-3 row">
+                <button class="btn btn-primary btn-lg update-profile-submit col ms-2 me-2">Update Profile</button>
+            </div>
+
+            <!-- api section -->
+
+            <!-- first row -->
+            <div class="mb-3 row">
+                <div class="col-9">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text" id="settings-api-key">API KEY</span>
+                        <input type="text" class="form-control form-control-lg  settings-api-key" name="settings-api-key" value="{{userDetails['api_key']}}" disabled aria-describedby="settings-api-key">
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="row">
+                        <button class="btn btn-primary btn-lg settings-generate-new-key ms-2 me-2 col">Change</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- password change section -->
+
+            <!-- first row -->
+            <div class="mb-3 row">
+                <div class="col">
+                    <label for="settings-current-password" class="form-label">Current Password</label>
+                    <input type="password" class="form-control form-control-lg col me-3 settings-current-password" id="settings-current-password"  name="current_password" required>
+                </div>
+            </div>
+
+            <!-- second row -->
+            <div class="mb-3 row">
+                <div class="col-md-6">
+                    <label for="settings-new-password" class="form-label">New Password</label>
+                    <input type="password" class="form-control form-control-lg col me-3 settings-new-password" id="settings-new-password"  name="new_password" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="settings-new-password-confirmation" class="form-label">New Password Confirmation</label>
+                    <input type="password" class="form-control form-control-lg col me-3 settings-new-password-confirmation" id="settings-new-password-confirmation"  name="new_password_confirmation" required>
+                </div>
+            </div>
+            <!-- third row -->
+            <div class="submit-container mb-3 mt-3 row">
+                <button class="btn btn-primary btn-lg update-password-submit col ms-2 me-2">Change Password</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}

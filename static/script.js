@@ -1,6 +1,6 @@
 
-let SPECIAL_CHARS = "/[!@#$%^&*()_+\-=\[\]{};:\\|,.<>\/?]+/",
-    EMAILREGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
+let SPECIAL_CHARS = "/[!@#$%^&*()_+-=[]{};:\\|,.<>/?]+/",
+    EMAILREGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 // function to validate password requirements
 function passWordValidation(passWord, passWordConfirmation) {
@@ -59,9 +59,13 @@ function passWordValidation(passWord, passWordConfirmation) {
 function inputValidation(firstName, lastName, userName, emailAddress, passWord, passWordConfirmation)
 {
     // if any input is empty
-    if (! firstName || ! lastName || ! userName || ! emailAddress || ! passWord || ! passWordConfirmation || firstName == "" || lastName == "" || userName == ""  || emailAddress == "" || passWord == "" || passWordConfirmation == "" )
+    if (! firstName || ! lastName || ! userName || ! emailAddress || ! passWord || ! passWordConfirmation || firstName == "" || lastName == "" || userName == ""  || emailAddress == "" || passWord == "" || passWordConfirmation == "")
     {
-        Swal.fire("Please fill all fields!");
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Please fill all fields!",
+        });
         return false;
     }
 
@@ -72,7 +76,11 @@ function inputValidation(firstName, lastName, userName, emailAddress, passWord, 
     {
         if (SPECIAL_CHARS.includes(eachChar))
         {
-            Swal.fire("Invalid username!");
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "Invalid username!",
+            });
             return false;
         }
     }
@@ -81,13 +89,21 @@ function inputValidation(firstName, lastName, userName, emailAddress, passWord, 
 
     // if user email input matches the email regex
     if (! emailAddress.match(EMAILREGEX)) {
-        Swal.fire("Invalid email address!");
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Invalid email address!",
+        });
         return false;
     }
 
     if (! passWordValidation(passWord, passWordConfirmation))
     {
-        Swal.fire("Password doesn't meet the requirements!");
+        Swal.fire({
+            icon: "error",
+            title: "Oops...",
+            text: "Password doesn't meet the requirements!",
+        });
         return false;
     }
     return true;
@@ -113,7 +129,7 @@ $(document).ready(function () {
         if (inputValidation(firstName, lastName, userName, emailAddress, passWord, passWordConfirmation))
         {
             // make ajax request to /register route
-            let postData = {
+            let registerPostData = {
                         "firstName":firstName,
                         "lastName":lastName,
                         "userName":userName,
@@ -122,33 +138,171 @@ $(document).ready(function () {
                         "passWordConfirmation":passWordConfirmation
                     }
 
-            console.log(postData);
             $.ajax({
-                type:"POST",
+                type: "POST",
                 url: "/register",
-                data: postData
-                ,
+                data: registerPostData,
                 success: function (response) {
                     if (response.code === 200) {
                         Swal.fire(
-                        `Welcome, ${userName}!`,
-                        'Your account created successfully, Please check email for activation message.',
-                        'success'
-                        )
-                    }
-                    else
-                    {
+                                "",
+                                `Welcome, ${userName}!`, "Your account created successfully, Please check email for activation message.",
+                                "success"
+                                );
+                    } else {
                         Swal.fire({
-                        icon: 'error',
-                        title: 'Oops...',
-                        text: response.message,
-                        })
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
                     }
                     console.log(response);
                 },
             });
         }
     });
+
+
+    // when login button is clicked
+    $("button.login-submit").click(function () {
+        let userIdentifier = $("input.login-identifier").val(),
+            passWord = $("input.login-password").val();
+
+        if (! userIdentifier || ! passWord || userIdentifier === "" || passWord === "") 
+        {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "Please fill all fields.",
+            });
+
+        }
+        else
+        {
+            let loginPostData = {
+                identifier: userIdentifier,
+                passWord: passWord
+            };
+            $.ajax({
+                type: "POST",
+                url: "/login",
+                data: loginPostData,
+                success: function (response) {
+                    if (response.code === 200) {
+                        window.location.href = '/'
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
+                    }
+                    console.log(response);
+                },
+            });
+        }
+    });
+
+
+    // when settings change api key button is clicked
+    $("button.settings-generate-new-key").click(function () {
+        $.ajax({
+            type: "GET",
+            url: "/api/change_key",
+            success: function (response) {
+                if (response.code === 200) {
+                    $("input.settings-api-key").val(response.data.api_key);
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Oops...",
+                        text: response.message,
+                    });
+                }
+                console.log(response);
+            },
+        });
+    });
+
+
+
+    // when update profile button is clicked
+    $("button.update-profile-submit").click(function () 
+    {
+        // get inputs values
+        let updatePostData = {
+            first_name: $("input.settings-first-name").val(),
+            last_name: $("input.settings-last-name").val(),
+            username: $("input.settings-username").val(),
+            email_address: $("input.settings-email-address").val(),
+        };
+
+        // if user email input matches the email regex
+        if (!emailAddress.match(EMAILREGEX)) {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "Invalid email address!",
+            });
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "/api/update_profile",
+                data: updatePostData,
+                success: function (response) {
+                    if (response.code === 200) {
+                        Swal.fire("", `Your profile has been updated successfully.`, "success");
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
+                    }
+                    console.log(response);
+                },
+            });
+        }
+    });
+
+    // when change password button is clicked
+    $("button.update-password-submit").click(function () {
+        let newPassword = $("input.settings-new-password").val(),
+            newPassWordConfirmation = $("input.settings-new-password-confirmation").val(),
+            updatePasswordData = {
+                current_password: $("input.settings-current-password").val(),
+                new_password: newPassword,
+                new_password_confirmation: newPassWordConfirmation,
+            };
+
+        if (! passWordValidation(newPassword, newPassWordConfirmation)) {
+            Swal.fire({
+                icon: "error",
+                title: "Oops...",
+                text: "Password doesn't meet the requirements.",
+            });
+        }
+        else {
+            $.ajax({
+                type: "POST",
+                url: "/api/change_password",
+                data: updatePasswordData,
+                success: function (response) {
+                    if (response.code === 200) {
+                        Swal.fire("", `Your password has been updated successfully.`, "success");
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Oops...",
+                            text: response.message,
+                        });
+                    }
+                    console.log(response);
+                },
+            });
+        }
+
+    });
+// end document ready
 });
-
-

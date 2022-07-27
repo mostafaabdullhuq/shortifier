@@ -115,18 +115,19 @@ footer span {
 /* register.html */
 
 
-div.register-image-container {
+div.register-image-container, .login-image-container {
     max-width: 80%;
     max-height: 600px;
     margin: 0px auto;
     overflow: hidden;
 }
 
-div.register-image-container img {
+div.register-image-container img,  div.login-image-container img{
     height: 100%;
     margin: 0px auto;
     max-width: 1000px;
 }
+
 .register-form {
     max-width: 1000px;
     margin:0px auto;
@@ -142,4 +143,16 @@ div.register-image-container img {
     height: 60px;
     padding: 0px 70px;
     text-align: center;
+}
+
+
+/* login.html */
+
+div.login-image-container img {
+    max-width: 600px;
+}
+
+.login-form, .settings-form {
+    max-width: 800px;
+    margin: 0px auto;
 }

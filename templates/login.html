@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Login
+{% endblock %}
+
+{% block body %}
+    <div class="container home-container">
+        <div class="row mb-5 login-image-container">
+            <img src="static/img/login.svg" alt="Login" class="img-responsive" />
+        </div>
+        <div class="login-form">
+            <div class="mb-3 row">
+            <input type="text" class="form-control form-control-lg col login-identifier" name="identifier" placeholder="Username or Email Address" required>
+            </div>
+            <div class="mb-3 row">
+                <input type="password" class="form-control form-control-lg col login-password" name="password" placeholder="Password" required>
+            </div>
+            <div class="submit-container row">
+                <button class="btn btn-primary btn-lg login-submit col">Login</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
