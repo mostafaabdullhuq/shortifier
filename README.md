@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # **Shortifier**
 
 ## Video Demo:  
@@ -83,3 +84,7 @@
   "visits" integer DEFAULT(0),
   FOREIGN KEY (user_id) REFERENCES "users" (id)
 );
+=======
+# shortifier
+A simple URL shortener app using python flask, sqlite3, html, javascript, css, bootstrap, sweetalert and jQuery
+>>>>>>> e4e459bc09ccba71295f564b8713439542094d35
