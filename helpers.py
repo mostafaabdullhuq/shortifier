@@ -9,7 +9,7 @@ for i in [ascii_lowercase, digits, ascii_uppercase]:
     for char in i:
         lettersList.append(char)
 
-
+# generate random api key that consists of 40 random characters
 def generateApikey():
     apiKey = ''
     for i in range(40):
@@ -18,7 +18,7 @@ def generateApikey():
 
 
 
-
+# ensure that user is logged in
 def login_required(f):
     """
     Decorate routes to require login.
@@ -33,7 +33,7 @@ def login_required(f):
     return decorated_function
 
 
-
+# generate random url id consists of 12 random characters
 def shorten_url():
     urlID = ''
     for i in range(12):

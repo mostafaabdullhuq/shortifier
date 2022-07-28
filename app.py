@@ -1,18 +1,73 @@
-from http.client import responses
-import os
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session, jsonify
+from flask import Flask, redirect, render_template, request, session, jsonify, send_from_directory
 from flask_session import Session
-from sqlalchemy import INTEGER
 from werkzeug.security import check_password_hash, generate_password_hash
 from helpers import generateApikey, login_required, shorten_url
+from os import path
+
+RESPONSE = {"status":"", "code": 0, "message": "", "data": {}}
 
 
 
+# check if user is already logged in user id and api key is valid
+def check_user_authenication():
+    try:
+        # get user id and api key from current session
+        userID = session["user_id"]
+        apiKey = session["api_key"]
+
+        # if session doesn't contain user id or api key
+        if not userID or not apiKey:
+            return False
+        # check for user id and api matching with database
+        userExist = getUserDetails(userID, apiKey)
+
+        # if user exists in database
+        if userExist:
+            return True
+        
+        # if user not found in database
+        else:
+            return False
+    except:
+        return False
+
+
+# get details of user given the user id or user id and api key
+def getUserDetails(userID, apiKey=False):
+
+    # if only user id is provided
+    if userID and not apiKey:
+
+        # get user details given the user id only
+        userDetails = db.execute("SELECT * FROM users WHERE id = ?", userID)
+    
+    # if both user id and api key is provided
+    else:
+
+        # get the user details given user id and api key
+        userDetails = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", userID, apiKey)
+
+    # if no user exists with this information
+    if len(userDetails) == 0:
+        userDetails = False
+
+    # if user found
+    else:
+        userDetails = userDetails[0]
+
+    # return user details
+    return userDetails
 
 
 # define flask application
 app = Flask(__name__)
+
+
+# add favicon to application
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(path.join(app.root_path, 'static'),'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
 
 
@@ -37,16 +92,22 @@ def after_request(response):
     return response
 
 
-# after each request check if user is logged in
+# run before the template gets rendered and has the ability to inject new values into the context of template
 @app.context_processor
 def get_user_details():
-    if session["user_id"] and session["api_key"]:
+
+    # if user is logged in
+    if check_user_authenication():
         try:
+
+            # get user details from database
             userDetails = db.execute("SELECT * FROM users WHERE id = ?", session["user_id"])[0]
         except:
             userDetails = False
     else:
         userDetails = False
+    
+    # return dictionary of user details
     return dict(userDetails=userDetails)
 
 
@@ -63,22 +124,21 @@ def index():
 @app.route("/register", methods=["GET","POST"])
 def register():
 
-    response = {"status":"", "code": 0, "message": "", "data": {}}
-
     """ if user used GET method """
     
     if request.method == "GET":
         
         # if user already logged in
-        if session["user_id"] and session["api_key"]:
+        if check_user_authenication():
+
+            # redirect user to home page
             return redirect("/")
 
-        # redirect user to registeration form
+        # redirect user to registeration page
         return render_template('register.html')
 
-    # initialize response object
 
-    """ if user used JSON POST method """
+    """ if user used POST method """
 
     # extract post request data
     firstName = request.form.get("firstName")
@@ -91,9 +151,9 @@ def register():
     # ensure that post data is not blank
     if not firstName and not lastName and not userName and not emailAddress and not passWord and not passWordConfirmation:
         # configure json response
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "Missing required fields."
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 400
+        RESPONSE["message"] = "Missing required fields."
     else:
 
         # check for username and email address in database
@@ -102,41 +162,50 @@ def register():
 
         # if username already exists in database
         if len(userNameExist) > 0 :
-            response["status"] = "failed"
-            response["code"] = 400
-            response["message"] = "Username already in use."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 400
+            RESPONSE["message"] = "Username already in use."
         
         # if email already exists in database
         elif len(emailExist ) > 0:
-            response["status"] = "failed"
-            response["code"] = 400
-            response["message"] = "Email adress already in use."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 400
+            RESPONSE["message"] = "Email adress already in use."
 
         else:
-            # check if api key already exists in database
+            # generate unique api key for the user
             while True:
+
                 # generate api key
                 apiKey = generateApikey()
+                
+                # check if generated api key already exists in database
                 apiExist = db.execute("SELECT * FROM users WHERE api_key = ?", apiKey)
+                
+                # if generated api key not exist in database
                 if (len(apiExist) == 0):
                     break
 
             # try to add the user details to dabase
             try:
-                userID = db.execute("INSERT INTO users(first_name, last_name, email, username, password, api_key, is_verified) VALUES(?,?,?,?,?,?,?)", firstName.lower().capitalize(), lastName.lower().capitalize(), emailAddress.lower(), userName.lower(), passWord, apiKey, False)
-                response["status"] = "success"
-                response["code"] = 200
-                response["message"] = "Account was created successfully."
-                response["data"] = {"user_id":f"{userID}", "api_key":f"{apiKey}", "firstName":f"{firstName}", "lastName":f"{lastName}", "userName":f"{userName}", "emailAddress":f"{emailAddress}", "passWord":f"{passWord}","is_verified": "False"}
+                userID = db.execute("INSERT INTO users(first_name, last_name, email, username, password, api_key) VALUES(?,?,?,?,?,?)", firstName.lower().capitalize(), lastName.lower().capitalize(), emailAddress.lower(), userName.lower(), generate_password_hash(passWord), apiKey)
+                RESPONSE["status"] = "success"
+                RESPONSE["code"] = 200
+                RESPONSE["message"] = "Account was created successfully."
+                RESPONSE["data"] = {"user_id":f"{userID}", "api_key":f"{apiKey}", "firstName":f"{firstName}", "lastName":f"{lastName}", "userName":f"{userName}", "emailAddress":f"{emailAddress}", "passWord":f"{passWord}"}
+
+                # log user in by adding session details
+                session["user_id"] = userID
+                session["api_key"] = apiKey
 
             # if error happends while adding user to database
             except Exception as databaseError:
-                response["status"] = "failed"
-                response["code"] = 400
-                response["message"] = str(databaseError)
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 400
+                RESPONSE["message"] = str(databaseError)
     
     # return json response
-    return jsonify(response)
+    return jsonify(RESPONSE)
 
 
 
@@ -144,15 +213,16 @@ def register():
 @app.route("/login", methods=["GET","POST"])
 def login():
 
-    response = {"status":"", "code": 0, "message": "", "data": {}}
-
     """ if user used get method """
     if request.method == "GET":
 
         # if user already logged in
-        if session["user_id"] and session["api_key"]:
+        if check_user_authenication():
+
+            # redirect user to home page
             return redirect("/")
 
+        # render the login page
         return render_template("login.html")
     
 
@@ -164,278 +234,315 @@ def login():
 
     # if any input is empty
     if not identifier or not passWord:
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "Please fill all fields."
-    
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 400
+        RESPONSE["message"] = "Please fill all fields."
     else:
 
-        # check for user credentials in database
-        isUserFound = db.execute("SELECT * FROM users WHERE (username LIKE ? OR email LIKE ? AND password = ?)", identifier, identifier, passWord)
+        # check if username exists in database
+        isUserFound = db.execute("SELECT * FROM users WHERE (username LIKE ? OR email LIKE ?)", identifier, identifier)
+        
+        # if username exists in database
         if len(isUserFound) > 0:
+
+            # get user details from database
             userDetails = isUserFound[0]
-            userID = userDetails["id"]
-            apiKey = userDetails["api_key"]
-            response["status"] = "success"
-            response["message"] = "Logged in successfully."
-            response["code"] = 200
-            for eachKey in userDetails:
-                response["data"][eachKey] = userDetails[eachKey]
-            response["data"]["destination"] = '/'
-            session["user_id"] = userID
-            session["api_key"] = apiKey
 
+            # get user password from database
+            hashPassword = userDetails["password"]
+
+            # check for password validation
+            if check_password_hash(hashPassword, passWord):
+
+                # get user id and api key from database
+                userID = userDetails["id"]
+                apiKey = userDetails["api_key"]
+                RESPONSE["status"] = "success"
+                RESPONSE["message"] = "Logged in successfully."
+                RESPONSE["code"] = 200
+                for eachKey in userDetails:
+                    RESPONSE["data"][eachKey] = userDetails[eachKey]
+                RESPONSE["data"]["destination"] = '/'
+
+                # add user details to session to log user in
+                session["user_id"] = userID
+                session["api_key"] = apiKey
+
+            # if password user entered doesn't match the password found in database
+            else:
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 401
+                RESPONSE["message"] = "Wrong Email/Username or Password."
+
+        # if username not exist in database
         else:
-            response["status"] = "failed"
-            response["code"] = 401
-            response["message"] = "Wrong Email/Username or Password."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 401
+            RESPONSE["message"] = "Wrong Email/Username or Password."
 
-    return jsonify(response)
+    # return the json response
+    return jsonify(RESPONSE)
 
 
+# shorten given url
 @app.route("/api/shorten", methods=["POST"])
 def shorten():
 
-    response = {"status":"", "code": 0, "message": "", "data": {}}
-
-    print(request.form)
 
     # get url that will be shortened
     url = request.form.get("url")
 
     # if no url provided
     if not url:
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "Please fill the URL field."
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 400
+        RESPONSE["message"] = "Please fill the URL field."
     else:
 
         # shorten the url
         while True:
             shortenURL = shorten_url()
-            
+
             # check if shorten url already exists
             isExist = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", shortenURL)
+
+            # if generated url is unique
             if len(isExist) == 0:
                 break
 
         # update the response
-        response["status"] = "success"
-        response["code"] = 200
-        response["message"] = "URL shortened successfully."
-        response["data"]["full_url"] = url
-        response["data"]["shortened_url_id"] = shortenURL
+        RESPONSE["status"] = "success"
+        RESPONSE["code"] = 200
+        RESPONSE["message"] = "URL shortened successfully."
+        RESPONSE["data"]["full_url"] = url
+        RESPONSE["data"]["shortened_url_id"] = shortenURL
         
         # if user is logged in
-        if session["api_key"] and session["user_id"]:
-            apiKey = session["api_key"]
+        if check_user_authenication():
+
+            # get user id from session
             userID = session["user_id"]
 
-            # ensure that id and api key are correct
-            apiFound = db.execute("SELECT * FROM users WHERE api_key = ? AND id = ?", apiKey, userID)
-            if len(apiFound) > 0:
+            # add url to user dashboard
+            addURL = db.execute("INSERT INTO urls (full_url, short_id, user_id) VALUES (?,?,?)", url, shortenURL, userID)
+            RESPONSE["data"]["url_id"] = addURL
+        
+        # if no logged in user
+        else:
 
-                # add url to user dashboard
-                addURL = db.execute("INSERT INTO urls (full_url, short_id, user_id) VALUES (?,?,?)", url, shortenURL, userID)
-                response["data"]["url_id"] = addURL
-
-    return jsonify(response)
+            # add url to database to the admin id ( first id)
+            addURL = db.execute("INSERT INTO urls (full_url, short_id, user_id) VALUES (?,?,?)", url, shortenURL,1)
+            RESPONSE["data"]["url_id"] = addURL
 
 
+    # return json response
+    return jsonify(RESPONSE)
+
+
+# logout user
 @login_required
 @app.route("/logout")
 def logout():
+
+    # clear session values by setting them to none
     session["user_id"] = None
     session["api_key"] = None
+
+    # redirect user to homepage
     return redirect("/")
 
 
+# user setting page
 @login_required 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     
     """ user profile and settings"""
 
+    # if user used get method
     if request.method == "GET":
+
+        # render the setting page
         return render_template("settings.html")
 
-
+# user dashboard page
 @login_required
 @app.route("/dashboard")
 def dashboard():
 
-    userID = session["user_id"]
-    apiKey = session["api_key"]
-
-    if not userID or not apiKey:
+    # if user not logged in
+    if not check_user_authenication():
+        
+        # redirect user to login page
         return redirect("/login")
+
+    # if user is logged in
     else:
-    # get user urls 
+
+        # get user id from session
+        userID = session["user_id"]
+        
+        # get user urls from database 
         userURLS = db.execute("SELECT * FROM urls WHERE user_id = ?", userID)
-        print(userURLS)
+
+        # render the dashboard and pass the user urls data to the template
         return render_template("dashboard.html", userURLS=userURLS)
 
 
-
+# change the api key
 @login_required
 @app.route("/api/change_key", methods=["GET"])
 def change_key():
-    response = {"status":"", "code": 0, "message": "", "data": {}}
 
     # if user not logged in
-    if not session["user_id"] or not session["api_key"] or session["api_key"] == None or session["user_id"] == None:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You are not logged in, please login and try again."
+    if not check_user_authenication():
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You are not logged in, please login and try again."
+
     else:
 
-        # check if user session details is correct
-        isInfoValid = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", session["user_id"], session["api_key"])
-        if len(isInfoValid) == 0:
-            response["status"] = "failed"
-            response["code"] = 401
-            response["message"] = "You are not logged in, please login and try again."
-        else:
+        # if user is logged in generate a new api key
+        newApiKey = generateApikey()
 
-            # if user is logged in generate a new api key
-            newApiKey = generateApikey()
+        # update the api key value in database
+        db.execute("UPDATE users SET api_key = ? WHERE id = ? AND api_key = ?", newApiKey, session["user_id"], session["api_key"])
+        RESPONSE["status"] = "success"
+        RESPONSE["code"] = 200
+        RESPONSE["message"] = "Api Key Changed Successfully."
+        RESPONSE["data"]["api_key"] = newApiKey
 
-            # update the api key value in database
-            addApi = db.execute("UPDATE users SET api_key = ? WHERE id = ? AND api_key = ?", newApiKey, session["user_id"], session["api_key"])
-            response["status"] = "success"
-            response["code"] = 200
-            response["message"] = "Api Key Changed Successfully."
-            response["data"]["api_key"] = newApiKey
+        # change session api key
+        session["api_key"] = newApiKey
 
-            # change session api key
-            session["api_key"] = newApiKey
-
-    return jsonify(response)
+    # return json response
+    return jsonify(RESPONSE)
 
 
-
+# edit user profile data
 @login_required
 @app.route("/api/update_profile", methods=["POST"])
 def update_profile():
-    response = {"status":"", "code": 0, "message": "", "data": {}}
-
-    # get user id from session
-    userID = session["user_id"]
-
 
     # if user not logged in
-    if not userID or userID == None:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You are not logged in, please login and try again."
+    if not check_user_authenication():
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You are not logged in, please login and try again."
     
     # if user is logged in
     else:
 
-        # check if user id is correct
-        userDetails = db.execute("SELECT * FROM users WHERE id = ?", userID)
-        if len(userDetails) == 0:
-            response["status"] = "failed"
-            response["code"] = 401
-            response["message"] = "You are not logged in, please login and try again."
+        # get user id from session
+        userID = session["user_id"]
+
+        # initialize new variables to track any changes in profile data
+        firstNameChanged = lastNameChanged = userNameChanged = emailChanged = False
         
+        # extract user inputs
+        newFirstName = request.form.get("first_name")
+        newLastName = request.form.get("last_name")
+        newUserName = request.form.get("username")
+        newEmail = request.form.get("email_address")
+
+        # if any input is blank
+        if not newFirstName or not newLastName or not newEmail or not newUserName:
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 400
+            RESPONSE["message"] = "Please fill all fields."
+
         else:
-            firstNameChanged = lastNameChanged = userNameChanged = emailChanged = False
-            # extract user inputs
-            newFirstName = request.form.get("first_name")
-            newLastName = request.form.get("last_name")
-            newUserName = request.form.get("username")
-            newEmail = request.form.get("email_address")
 
-            # if any input is blank
-            if not newFirstName or not newLastName or not newEmail or not newUserName:
-                response["status"] = "failed"
-                response["code"] = 400
-                response["message"] = "Please fill all fields."
+            # get current user details from database
+            userDetails = getUserDetails(userID)
+            oldFirstName = userDetails["first_name"]
+            oldLastName = userDetails["last_name"]
+            oldUserName = userDetails["username"]
+            oldEmail = userDetails["email"]
 
-            else:
-                # get old user details
-                oldFirstName = userDetails[0]["first_name"]
-                oldLastName = userDetails[0]["last_name"]
-                oldUserName = userDetails[0]["username"]
-                oldEmail = userDetails[0]["email"]
+            # if user changed first name
+            if (oldFirstName.lower().strip() != newFirstName.lower().strip()):
+                firstNameChanged = True
 
-                # if user not changed first name
-                if (oldFirstName.lower().strip() != newFirstName.lower().strip()):
-                    firstNameChanged = True
+            # if user changed last name
+            if (oldLastName.lower().strip() != newLastName.lower().strip()):
+                lastNameChanged = True
 
-                # if user not changed last name
-                if (oldLastName.lower().strip() != newLastName.lower().strip()):
-                    lastNameChanged = True
+            # if user changed username
+            if (oldUserName.lower().strip() != newUserName.lower().strip()):
+                userNameChanged = True
 
-                # if user not changed username
-                if (oldUserName.lower().strip() != newUserName.lower().strip()):
-                    userNameChanged = True
+            # if user changed email address
+            if (oldEmail.lower().strip() != newEmail.lower().strip()):
+                emailChanged = True
+
+            # if user made any changes
+            if userNameChanged or emailChanged or firstNameChanged or lastNameChanged:
                 
+                # if user changed username
+                if userNameChanged:
 
-                # if user not changed email address
-                if (oldEmail.lower().strip() != newEmail.lower().strip()):
-                    emailChanged = True
+                    # check for new username dupplication
+                    userNameExist = db.execute("SELECT * FROM users where username LIKE ?", newUserName)
 
-                # if user made any changes
+                    # if new username already exists in database
+                    if len(userNameExist) > 0:
+                        RESPONSE["status"] = "failed"
+                        RESPONSE["code"] = 400
+                        RESPONSE["message"] = "username already exists."
+
+                        # keep the current username as the old one
+                        newUserName = oldUserName
+                        userNameChanged = False
+                    
+                    # check for email dupplication
+                    emailExist = db.execute("SELECT * FROM users WHERE email LIKE ?", newEmail)
+
+                    # if email already exists in database
+                    if len(emailExist) > 0:
+                        RESPONSE["status"] = "failed"
+                        RESPONSE["code"] = 400
+                        RESPONSE["message"] = "email already exists."
+
+                        # keep the current email address as the old one
+                        newEmail = oldEmail
+                        emailChanged = False
+                    
+
+                # if user changed any profile detail
                 if userNameChanged or emailChanged or firstNameChanged or lastNameChanged:
-                    # if user changed username
-                    if userNameChanged:
+                    
+                    # update the user details in database
+                    db.execute("UPDATE users SET first_name = ? , last_name = ?, email = ?, username = ? WHERE id = ?", newFirstName, newLastName, newEmail, newUserName, userID)
 
-                        # check for new username dupplication
-                        userNameExist = db.execute("SELECT * FROM users where username LIKE ?", newUserName)
-                        if len(userNameExist) > 0:
-                            response["status"] = "failed"
-                            response["code"] = 400
-                            response["message"] = "username already exists."
-                            newUserName = oldUserName
-                            userNameChanged = False
-                        
-                        # check for email dupplication
-                        emailExist = db.execute("SELECT * FROM users WHERE email LIKE ?", newEmail)
-                        if len(emailExist) > 0:
-                            response["status"] = "failed"
-                            response["code"] = 400
-                            response["message"] = "email already exists."
-                            newEmail = oldEmail
-                            emailChanged = False
-                        
+                    # get new user details from database
+                    userDetails = getUserDetails(userID)
+                    RESPONSE["status"] = "success"
+                    RESPONSE["code"] = 200
+                    RESPONSE["message"] = "Your Details Changed Successfully."
+                    for eachKey in userDetails:
+                        RESPONSE["data"][eachKey] = userDetails[eachKey]
+            else:
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 400
+                RESPONSE["message"] = "No edits to change."
 
-                    # if user changed any profile detail
-                    if userNameChanged or emailChanged or firstNameChanged or lastNameChanged:
-                        
-                        # update the user details in database
-                        changeDetails    = db.execute("UPDATE users SET first_name = ? , last_name = ?, email = ?, username = ? WHERE id = ?", newFirstName, newLastName, newEmail, newUserName, userID)
-
-                        # get new user details from database
-                        userDetails = db.execute("SELECT * FROM users WHERE id = ?", userID)[0]
-                        response["status"] = "success"
-                        response["code"] = 200
-                        response["message"] = "Your Details Changed Successfully."
-                        for eachKey in userDetails:
-                            response["data"][eachKey] = userDetails[eachKey]
-                else:
-                    response["status"] = "failed"
-                    response["code"] = 400
-                    response["message"] = "No edits to change."
-
-    return jsonify(response)
+    return jsonify(RESPONSE)
 
 
 
 @login_required
 @app.route("/api/change_password", methods=["POST"])
 def change_password():
-    response = {"status":"", "code": 0, "message": "", "data": {}}
 
     # get user id from the session
     userID = session["user_id"]
 
     # check if user is correct
-    userExist = db.execute("SELECT * FROM users WHERE id = ?", userID)
+    userExist = getUserDetails(userID)
 
     # if id is correct and user is logged in
-    if len(userExist) > 1:
+    if userExist:
 
         # get user inputs
         currentPassword = request.form.get("current_password")
@@ -444,193 +551,278 @@ def change_password():
 
         # if any input is empty
         if not currentPassword or not newPassword or not newPasswordConfirmation:
-            response["status"] = "failed"
-            response["code"] = 400
-            response["message"] = "Please fill all fields."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 400
+            RESPONSE["message"] = "Please fill all fields."
         else:
 
+            # get current password
+            currentHashPassword = userExist['password']
+
             # check if current password is correct
-            checkPassword = db.execute("SELECT * FROM users WHERE password = ? AND id = ?", currentPassword, userID)
-            if len(checkPassword) > 0:
-                
+            if check_password_hash(currentHashPassword, currentPassword):
+
                 # check if password confirmation is the same as new password
                 if newPassword == newPasswordConfirmation:
 
-                    # update password in database
-                    changePassword = db.execute("UPDATE users SET password = ? WHERE id = ?", newPassword, userID)
-                    response["status"] = "success"
-                    response["code"] = 200
-                    response["message"] = "Your password has been updated successfully."
+                    # convert password to hash and update password in database
+                    changePassword = db.execute("UPDATE users SET password = ? WHERE id = ?",generate_password_hash(newPassword), userID)
+                    RESPONSE["status"] = "success"
+                    RESPONSE["code"] = 200
+                    RESPONSE["message"] = "Your password has been updated successfully."
+
+                # if new password doesn't meet the requirements
                 else:
-                    response["status"] = "failed"
-                    response["code"] = 400
-                    response["message"] = "Password doesn't meet the requirements."
+                    RESPONSE["status"] = "failed"
+                    RESPONSE["code"] = 400
+                    RESPONSE["message"] = "Password doesn't meet the requirements."
+            
+            # if user provided wrong current password
             else:
-                response["status"] = "failed"
-                response["code"] = 401
-                response["message"] = "Invalid current password."
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 401
+                RESPONSE["message"] = "Invalid current password."
+
+    # if user not found in database
     else:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You are not logged in, please login and try again."
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You are not logged in, please login and try again."
 
-    return jsonify(response)
-
-
-
+    # return json response
+    return jsonify(RESPONSE)
 
 
 
+
+
+# check url if it is able to be edited
 @app.route("/api/check_edit_url", methods=["POST"])
 def check_edit_url():
 
-    response = {"status":"", "code": 0, "message": "", "data": {}}
+    # if user is not logged in
+    if not check_user_authenication():
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You must be logged in to edit URL."
 
-    userID = session["user_id"]
-    apiKey = session["api_key"]
-    print(userID, apiKey)
-    if not userID or not apiKey:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You must be logged in to edit URL."
+    # if user is logged in
     else:
 
-        # validate user id and api key
-        userExist = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", userID, apiKey)
-        if len(userExist) > 0:
+        # get user id and api key
+        userID = session["user_id"]
+        apiKey = session["api_key"]
+
+        # get user details from database
+        userExist = getUserDetails(userID, apiKey)
+
+        # if user exists
+        if userExist:
+
+            # get url id from post data
             urlID = request.form.get("url_id")
+
+            # if no url id found in post data
             if not urlID:
-                response["status"] = "failed"
-                response["code"] = 400
-                response["message"] = "Please provide URL ID to edit."
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 400
+                RESPONSE["message"] = "Please provide URL ID to edit."
             else:
 
-                # check if url id is valid
+                # check if url id is valid and belongs to the current user
                 checkURL = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+
+                # if url found and belongs to user
                 if len(checkURL) > 0:
-                    response["status"] = "success"
-                    response["code"] = 200
-                    response["message"] = "You are allowed to edit this URL."
+                    RESPONSE["status"] = "success"
+                    RESPONSE["code"] = 200
+                    RESPONSE["message"] = "You are allowed to edit this URL."
+
+                # if the url not belongs to the current user
                 else:
-                    response["status"] = "failed"
-                    response["code"] = 401
-                    response["message"] = "You are not allowed to edit this URL."
+                    RESPONSE["status"] = "failed"
+                    RESPONSE["code"] = 401
+                    RESPONSE["message"] = "You are not allowed to edit this URL."
 
+        # if no user found with the given id and api key
         else:
-            response["status"] = "failed"
-            response["code"] = 401
-            response["message"] = "You must be logged in to edit URL."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 401
+            RESPONSE["message"] = "You must be logged in to edit URL."
+
+    # return json response
+    return jsonify(RESPONSE)
 
 
-    return jsonify(response)
-    
 
-
+# edit url
 @login_required
 @app.route("/api/edit_url", methods=["POST"])
 def edit_url():
-    response = {"status":"", "code": 0, "message": "", "data": {}}
 
-    userID = session["user_id"]
-    apiKey = session["api_key"]
 
-    
-    if not userID or not apiKey:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You must be logged in to edit this URL."
+    # if user not logged in
+    if not check_user_authenication():
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You must be logged in to edit this URL."
 
+    # if user is logged in
     else:
 
-        userExist = db.execute("SELECT * FROM users WHERE id = ? AND api_key = ?", userID, apiKey)
+        # get user id and api key
+        userID = session["user_id"]
+        apiKey = session["api_key"]
 
-        if len(userExist) > 0 :
+        # check if user exists in database
+        userExist = getUserDetails(userID, apiKey)
+
+        # if user exists in database
+        if userExist:
+
+            # get the url that needs to be edited from the post data
             urlID = request.form.get("url_id")
+
+            # get new url from post data
             newURL = request.form.get("new_url")
 
+            # if any input not provided in post data
             if not urlID or not newURL:
-                response["status"] = "failed"
-                response["code"] = 400
-                response["message"] = "Please provide valid URL and URL ID."
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 400
+                RESPONSE["message"] = "Please provide valid URL and URL ID."
+            
+            # if user provided all inputs required
             else:
 
+                # check if url belongs to the current user
                 urlIDExist = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+
+                # if user owns the current url
                 if len(urlIDExist) > 0:
+
+                    # check if the new url already exists in the database
                     checkNewURL = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", newURL)
+
+                    # if no dupplication found in the database
                     if len(checkNewURL)  ==  0:
-                        changeURL = db.execute("UPDATE urls SET short_id = ? WHERE id = ?", newURL, urlID)
-                        response["status"] = "success"
-                        response["code"] = 200
-                        response["message"] = "URL has been updated successfully."
-                        response["data"]["url_id"] = urlID 
-                        response["data"]["new_url"] = newURL 
+
+                        # update the url id to the new one
+                        db.execute("UPDATE urls SET short_id = ? WHERE id = ?", newURL, urlID)
+                        RESPONSE["status"] = "success"
+                        RESPONSE["code"] = 200
+                        RESPONSE["message"] = "URL has been updated successfully."
+                        RESPONSE["data"]["url_id"] = urlID 
+                        RESPONSE["data"]["new_url"] = newURL 
+
+                    # if new url already exists in the database
                     else:
-                        response["status"] = "failed"
-                        response["code"] = 400
-                        response["message"] = "URL already exists."
+                        RESPONSE["status"] = "failed"
+                        RESPONSE["code"] = 400
+                        RESPONSE["message"] = "URL already exists."
+
+                # if user don't have permissions to edit the url
                 else:
-                    response["status"] = "failed"
-                    response["code"] = 400
-                    response["message"] = "Either you entered wrong URL ID or you don't have permissions to edit this URL."
+                    RESPONSE["status"] = "failed"
+                    RESPONSE["code"] = 400
+                    RESPONSE["message"] = "Either you entered wrong URL ID or you don't have permissions to edit this URL."
 
-
+        # if user not logged in
         else:
-            response["status"] = "failed"
-            response["code"] = 401
-            response["message"] = "You must be logged in to edit this URL."
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 401
+            RESPONSE["message"] = "You must be logged in to edit this URL."
 
-    return jsonify(response)
+    # return json response
+    return jsonify(RESPONSE)
 
 
+# redirect the shortened url to the original url
 @app.route('/<shortened_url>')
 def url_redirect(shortened_url):
 
+    # check if the url provided already exists in the database
     urlExist = db.execute("SELECT * FROM urls WHERE short_id LIKE ?", shortened_url)
+
+    # if url not found in the database
     if len(urlExist) == 0:
+
+        # redirect to the homepage
         return redirect("/")
+
+    # if url found in database
     else:
+
+        # get the id of the url from the database
         urlID = urlExist[0]['id']
+
+        # get the original url from the database
         fullURL = urlExist[0]['full_url']
+
+        # if the full url doesn't start with http:// or https://
         if not (fullURL.startswith('http://') or fullURL.startswith('https://')):
+
+            # add https:// to the url
             fullURL = 'https://' + fullURL
+        
+        # get the current visit number from the database
         visitNumber = int(urlExist[0]['visits'])
+
+        # increment the number of visits of the current url
         db.execute("UPDATE urls SET visits = ? WHERE id = ?", visitNumber + 1 , urlID)
+
+        # redirect the user to the original url
         return redirect(fullURL)
 
 
 
+# delete given url from the database
 @login_required
 @app.route("/api/delete_url", methods=["POST"])
 def delete_url():
-    response = {"status":"", "code": 0, "message": "", "data": {}}
-
-    userID = session["user_id"]
-    urlID = request.form.get("url_id")
-
-    if not userID:
-        response["status"] = "failed"
-        response["code"] = 401
-        response["message"] = "You must be logged in to delete this url."
-    
-    if not urlID:
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "Invalid url ID."
 
 
-    isURLFound  = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+    # if user not logged in
+    if not check_user_authenication():
+        RESPONSE["status"] = "failed"
+        RESPONSE["code"] = 401
+        RESPONSE["message"] = "You must be logged in to delete this url."
 
-    if len(isURLFound) > 0:
-        deleteURL = db.execute("DELETE FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
-        response["status"] = "success"
-        response["code"] = 200
-        response["message"] = "URL has been deleted successfully."
-
-
+    # if user is logged in
     else:
-        response["status"] = "failed"
-        response["code"] = 400
-        response["message"] = "URL not found."
+
+        # get the user id and url id
+        userID = session["user_id"]
+        urlID = request.form.get("url_id")
+
+        # if no url id provided
+        if not urlID:
+            RESPONSE["status"] = "failed"
+            RESPONSE["code"] = 400
+            RESPONSE["message"] = "Invalid url ID."
+
+        # if url id provided
+        else:
+
+            # check if the url id already exists in database
+            isURLFound  = db.execute("SELECT * FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+
+            # if url found in database
+            if len(isURLFound) > 0:
+
+                # delete the url from the database
+                db.execute("DELETE FROM urls WHERE id = ? AND user_id = ?", urlID, userID)
+                RESPONSE["status"] = "success"
+                RESPONSE["code"] = 200
+                RESPONSE["message"] = "URL has been deleted successfully."
+
+            # if url not found in the database
+            else:
+                RESPONSE["status"] = "failed"
+                RESPONSE["code"] = 400
+                RESPONSE["message"] = "URL not found."
 
 
-    return jsonify(response)
+    return jsonify(RESPONSE)
+
+
