@@ -1,7 +1,6 @@
 from functools import wraps
 from string import ascii_lowercase,ascii_uppercase, digits
 from random import choice
-import pyqrcode
 from flask import redirect, session
 
 lettersList = []
